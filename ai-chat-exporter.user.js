@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT / Claude / Copilot / Gemini / Grok AI Chat Exporter by RevivalStack
 // @namespace    https://github.com/revivalstack/chatgpt-exporter
-// @version      3.1.1
+// @version      3.1.2
 // @description  Export your ChatGPT, Claude, Copilot, Gemini or Grok chat into a properly and elegantly formatted Markdown or JSON.
 // @author       Mic Mejia (Refactored by Google Gemini)
 // @homepage     https://github.com/micmejia
@@ -22,7 +22,7 @@
   "use strict";
 
   // --- Global Constants ---
-  const EXPORTER_VERSION = "3.1.1";
+  const EXPORTER_VERSION = "3.1.2";
   const EXPORT_CONTAINER_ID = "export-controls-container";
   const OUTLINE_CONTAINER_ID = "export-outline-container"; // ID for the outline div
   const DOM_READY_TIMEOUT = 1000;
@@ -1754,13 +1754,40 @@
     },
 
     /**
+     * Extracts fresh chat data for the currently matched platform.
+     * @param {Document} doc - The Document object.
+     * @returns {object|null} The standardized chat data, or null.
+     */
+    extractCurrentPlatformChatData(doc) {
+      switch (CURRENT_PLATFORM) {
+        case CHATGPT:
+          return ChatExporter.extractChatGPTChatData(doc);
+        case CLAUDE:
+          return ChatExporter.extractClaudeChatData(doc);
+        case COPILOT:
+          return ChatExporter.extractCopilotChatData(doc);
+        case GEMINI:
+          return ChatExporter.extractGeminiChatData(doc);
+        case GROK:
+          return ChatExporter.extractGrokChatData(doc);
+        default:
+          return null;
+      }
+    },
+
+    /**
      * Main export orchestrator. Extracts data, configures Turndown, and formats.
      * This function now filters messages based on _selectedMessageIds and visibility.
      * @param {string} format - The desired output format ('markdown' or 'json').
      */
     initiateExport(format) {
-      // Use the _currentChatData that matches the outline's IDs
-      const rawChatData = ChatExporter._currentChatData;
+      // Prefer the outline cache so checkbox selections keep matching IDs, but
+      // fall back to a fresh DOM extraction when the outline missed page timing.
+      const rawChatData =
+        ChatExporter._currentChatData &&
+        ChatExporter._currentChatData.messages.length > 0
+          ? ChatExporter._currentChatData
+          : ChatExporter.extractCurrentPlatformChatData(document);
       let turndownServiceInstance = null;
 
       if (!rawChatData || rawChatData.messages.length === 0) {
@@ -1773,7 +1800,7 @@
       const outlineContainer = document.querySelector(
         `#${OUTLINE_CONTAINER_ID}`
       );
-      if (outlineContainer) {
+      if (outlineContainer && ChatExporter._currentChatData === rawChatData) {
         // Only consider checkboxes that are checked AND visible
         const checkedVisibleCheckboxes = outlineContainer.querySelectorAll(
           ".outline-item-checkbox:checked"
@@ -1821,6 +1848,10 @@
             }
           }
         });
+      } else {
+        rawChatData.messages.forEach((msg) =>
+          ChatExporter._selectedMessageIds.add(msg.id)
+        );
       }
       // --- End Refresh ---
 
