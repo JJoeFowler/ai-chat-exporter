@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT / Claude / Copilot / Gemini / Grok AI Chat Exporter by RevivalStack
 // @namespace    https://github.com/revivalstack/chatgpt-exporter
-// @version      3.1.5
+// @version      3.1.6
 // @description  Export your ChatGPT, Claude, Copilot, Gemini or Grok chat into a properly and elegantly formatted Markdown or JSON.
 // @author       Mic Mejia (Refactored by Google Gemini)
 // @homepage     https://github.com/micmejia
@@ -22,7 +22,7 @@
   "use strict";
 
   // --- Global Constants ---
-  const EXPORTER_VERSION = "3.1.5";
+  const EXPORTER_VERSION = "3.1.6";
   const EXPORT_CONTAINER_ID = "export-controls-container";
   const OUTLINE_CONTAINER_ID = "export-outline-container"; // ID for the outline div
   const DOM_READY_TIMEOUT = 1000;
@@ -96,20 +96,20 @@
   GM_registerMenuCommand("Set Vertical Position", () => {
     const screenHeight =
       document.documentElement.clientHeight || window.innerHeight || 0;
-    const currentPos = GM_getValue(GM_CONTROLS_VERTICAL_POSITION, 20);
+    const currentPos = GM_getValue(GM_CONTROLS_VERTICAL_POSITION, 6);
 
     const promptMsg =
       `Set vertical position (top) in px.\n\n` +
       `Current: ${currentPos}px\n` +
       `Screen Height: ${screenHeight}px\n\n` +
-      `Note: Invalid input will reset position to 20px. \n` +
+      `Note: Invalid input will reset position to 6px. \n` +
       `You must refresh the page after for changes to take effect.`;
 
     const input = prompt(promptMsg, currentPos);
     if (input !== null) {
       const parsed = parseInt(input, 10);
       const isValid = !isNaN(parsed) && parsed >= 0;
-      const finalVal = isValid ? parsed : 20;
+      const finalVal = isValid ? parsed : 6;
 
       if (isValid && screenHeight > 0 && parsed > screenHeight - 100) {
         alert(
@@ -127,7 +127,7 @@
 
   // --- 3. Dynamic Style Calculation ---
   const hPos = GM_getValue(GM_CONTROLS_HORIZONTAL_POSITION, 140);
-  const vPos = GM_getValue(GM_CONTROLS_VERTICAL_POSITION, 20);
+  const vPos = GM_getValue(GM_CONTROLS_VERTICAL_POSITION, 6);
 
   const savedVerticalPos = `${vPos}px`;
   const topCenterChatTransform = `translateX(calc(-50% + ${hPos}px))`;
@@ -151,7 +151,7 @@
 
   const OUTLINE_CONTAINER_PROPS = {
     position: "fixed",
-    top: `${vPos + 50}px`,
+    top: `${vPos + 42}px`,
     left: "50%",
     transform: topCenterChatTransform,
     zIndex: "9998",
@@ -251,17 +251,17 @@
   };
 
   const BUTTON_BASE_PROPS = {
-    height: "32px", // 4px shorter than our previous 36px target
+    height: "28px",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: "0 15px", // Increased from 14px to 15px for extra width
+    padding: "0 12px",
     backgroundColor: "#5b3f87",
     color: "white",
     border: "none",
     cursor: "pointer",
-    borderRadius: "6px", // Slightly tighter radius for shorter buttons
-    fontSize: "12px", // Slightly smaller font to fit the 32px height
+    borderRadius: "5px",
+    fontSize: "12px",
     fontWeight: "600",
     boxSizing: "border-box",
     lineHeight: "1",
@@ -269,7 +269,7 @@
   };
 
   const BUTTON_SPACING_PROPS = {
-    marginLeft: "8px",
+    marginLeft: "6px",
   };
 
   // --- Alert Styles ---
@@ -2004,7 +2004,7 @@
       Utils.applyStyles(container, {
         ...COMMON_CONTROL_PROPS,
         backgroundColor: "#ffffff",
-        padding: "6px 10px",
+        padding: "4px 6px",
         border: "1px solid #ddd",
       });
 
