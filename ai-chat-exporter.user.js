@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT / Claude / Copilot / Gemini / Grok AI Chat Exporter by RevivalStack
 // @namespace    https://github.com/revivalstack/chatgpt-exporter
-// @version      3.1.6
+// @version      3.1.7
 // @description  Export your ChatGPT, Claude, Copilot, Gemini or Grok chat into a properly and elegantly formatted Markdown or JSON.
 // @author       Mic Mejia (Refactored by Google Gemini)
 // @homepage     https://github.com/micmejia
@@ -22,7 +22,7 @@
   "use strict";
 
   // --- Global Constants ---
-  const EXPORTER_VERSION = "3.1.6";
+  const EXPORTER_VERSION = "3.1.7";
   const EXPORT_CONTAINER_ID = "export-controls-container";
   const OUTLINE_CONTAINER_ID = "export-outline-container"; // ID for the outline div
   const DOM_READY_TIMEOUT = 1000;
@@ -1789,13 +1789,19 @@
      * @param {string} format - The desired output format ('markdown' or 'json').
      */
     initiateExport(format) {
-      // Prefer the outline cache so checkbox selections keep matching IDs, but
-      // fall back to a fresh DOM extraction when the outline missed page timing.
+      // ChatGPT Enterprise can leave the outline cache with all user turns but
+      // only a partial assistant set. Re-read the live DOM at export time so the
+      // downloaded file reflects the page content currently present in the DOM.
+      const freshChatData = ChatExporter.extractCurrentPlatformChatData(document);
       const rawChatData =
-        ChatExporter._currentChatData &&
-        ChatExporter._currentChatData.messages.length > 0
+        CURRENT_PLATFORM === CHATGPT &&
+        freshChatData &&
+        freshChatData.messages.length > 0
+          ? freshChatData
+          : ChatExporter._currentChatData &&
+            ChatExporter._currentChatData.messages.length > 0
           ? ChatExporter._currentChatData
-          : ChatExporter.extractCurrentPlatformChatData(document);
+          : freshChatData;
       let turndownServiceInstance = null;
 
       if (!rawChatData || rawChatData.messages.length === 0) {
