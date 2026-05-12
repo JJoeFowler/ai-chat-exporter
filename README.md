@@ -1,3 +1,36 @@
+# JJoeFowler Fork Notes
+
+This fork contains local changes made to get `ai-chat-exporter` working in a GitHub Enterprise / ChatGPT Enterprise work environment where the original upstream script did not successfully detect and export ChatGPT conversation content.
+
+As of **May 11, 2026**, this fork has been verified as working for my immediate ChatGPT Enterprise export use case. I plan to do more with this over time, but the immediate need was simple and urgent: I needed a way to save my chats before they were lost due to my organization's retention policy. Manually copying chats with `Ctrl+A` / `Ctrl+C` into Word produced incomplete and poorly formatted archives, so the first goal of this fork is reliable Markdown/JSON export from the ChatGPT web UI used in that environment.
+
+At the time I forked it, the upstream repository did not appear to have been touched for a couple of months. Given how often GPT's chat interface changes, that made the original script fragile for my use case. I chose to fork it for now because I needed it working today, not eventually.
+
+The important caveat is that GPT's chat DOM is a moving target. Unless someone is actively checking and fixing this kind of tool on a semi-daily basis, it can stop working at any time. This fork should be treated as a practical working copy, not as a guarantee that ChatGPT export will keep working without ongoing maintenance.
+
+## Main Changes in This Fork
+
+- **ChatGPT Enterprise export fixes**: Updated ChatGPT message detection so the exporter can read the live conversation DOM in the environment where the original script reported "No messages found to export."
+- **More reliable assistant-message capture**: Adjusted ChatGPT extraction to preserve assistant messages that were present in the DOM but not captured correctly by the original selector logic.
+- **Fresh DOM extraction at export time**: Changed the ChatGPT export path so it refreshes what is on the page when the export button is clicked, rather than relying on stale state captured earlier.
+- **Top-center export controls**: Moved the export buttons from the lower-right corner to a compact top-center position so they do not interfere with the normal ChatGPT input area and bottom controls.
+- **Local install behavior**: Removed the upstream auto-update/download metadata from the userscript while testing this fork, so a locally installed copy does not silently replace these changes with the upstream script.
+- **Diagnostic helper**: Added a ChatGPT DOM diagnostic helper under `tools/` to inspect which message nodes the page exposes when exporter behavior changes.
+
+## Installing This Fork
+
+Install the forked userscript from:
+
+[Install JJoeFowler fork of ai-chat-exporter](https://raw.githubusercontent.com/JJoeFowler/ai-chat-exporter/main/ai-chat-exporter.user.js)
+
+This is still a Tampermonkey userscript. Tampermonkey will show the script permissions and included sites before installation.
+
+---
+
+## Original Upstream README at Fork Point
+
+The content below is the original upstream README as it existed at the point this repository was forked. It is retained so the upstream project description, installation notes, feature list, screenshots, support links, and historical release notes remain available.
+
 # ChatGPT-Claude-Copilot-Gemini-Grok AI Chat Exporter by RevivalStack (v3.1.0)
 
 [![Support via Wise](https://img.shields.io/badge/Support-Wise-brightgreen?style=for-the-badge&logo=wise&logoColor=green)](https://wise.com/pay/me/michaelm400)
