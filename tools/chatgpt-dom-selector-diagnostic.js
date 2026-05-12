@@ -1,9 +1,9 @@
 // Paste this whole snippet into the ChatGPT page DevTools console.
 // It writes the diagnostic to the console, copies JSON to the clipboard when
-// DevTools permits copy(), and tries to save a JSON file through the browser.
+// DevTools permits copy(), and downloads a JSON file through the browser.
 (async () => {
   const DIAGNOSTIC_NAME = "chatgpt-dom-diagnostic";
-  const DIAGNOSTIC_VERSION = "2026-05-11.3";
+  const DIAGNOSTIC_VERSION = "2026-05-11.4";
   const selectors = [
     "main",
     "article",
@@ -55,10 +55,8 @@
     const result = {
       filename,
       copiedToClipboard: false,
-      savedWithDirectoryPicker: false,
       downloadedWithBlob: false,
-      directoryPickerError: null,
-      downloadFallbackReason: null,
+      saveMode: "browser-download",
     };
 
     try {
@@ -68,26 +66,11 @@
       result.clipboardError = String(error?.message || error);
     }
 
-    if (typeof window.showDirectoryPicker === "function") {
-      try {
-        const dir = await window.showDirectoryPicker({
-          mode: "readwrite",
-          startIn: "documents",
-        });
-        const file = await dir.getFileHandle(filename, { create: true });
-        const writable = await file.createWritable();
-        await writable.write(json);
-        await writable.close();
-        result.savedWithDirectoryPicker = true;
-        return result;
-      } catch (error) {
-        result.directoryPickerError = String(error?.message || error);
-        result.downloadFallbackReason = "directory picker was unavailable, canceled, or blocked";
-      }
-    } else {
-      result.downloadFallbackReason = "window.showDirectoryPicker is not available";
-    }
-
+    // Use a normal download instead of showDirectoryPicker(). Chrome can reject
+    // OneDrive/Documents folders as containing "system files" when granting a
+    // directory handle to chatgpt.com. Downloads are less elegant, but they avoid
+    // that folder-handle restriction and still produce a real JSON file Codex can
+    // find or the user can save/move into the prepared raw folder.
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
