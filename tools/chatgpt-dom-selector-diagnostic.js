@@ -1,5 +1,9 @@
-(() => {
-  const DIAGNOSTIC_VERSION = "2026-05-11.2";
+// Paste this whole snippet into the ChatGPT page DevTools console.
+// It writes the diagnostic to the console, copies JSON to the clipboard when
+// DevTools permits copy(), and tries to save a JSON file through the browser.
+(async () => {
+  const DIAGNOSTIC_NAME = "chatgpt-dom-diagnostic";
+  const DIAGNOSTIC_VERSION = "2026-05-11.3";
   const selectors = [
     "main",
     "article",
@@ -28,6 +32,74 @@
   }));
 
   const normalizeText = (text) => String(text || "").replace(/\s+/g, " ").trim();
+  const pad = (value) => String(value).padStart(2, "0");
+  const timestampForFile = () => {
+    const now = new Date();
+    return [
+      now.getFullYear(),
+      pad(now.getMonth() + 1),
+      pad(now.getDate()),
+    ].join("-") +
+      "_" +
+      [pad(now.getHours()), pad(now.getMinutes()), pad(now.getSeconds())].join("-");
+  };
+  const sanitizeFilePart = (value) =>
+    normalizeText(value)
+      .replace(/[<>:"/\\|?*\x00-\x1F]/g, "-")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 80) || "chatgpt-page";
+  const saveDiagnosticJson = async (payload, filename) => {
+    const json = JSON.stringify(payload, null, 2);
+    const result = {
+      filename,
+      copiedToClipboard: false,
+      savedWithDirectoryPicker: false,
+      downloadedWithBlob: false,
+      directoryPickerError: null,
+      downloadFallbackReason: null,
+    };
+
+    try {
+      copy(json);
+      result.copiedToClipboard = true;
+    } catch (error) {
+      result.clipboardError = String(error?.message || error);
+    }
+
+    if (typeof window.showDirectoryPicker === "function") {
+      try {
+        const dir = await window.showDirectoryPicker({
+          mode: "readwrite",
+          startIn: "documents",
+        });
+        const file = await dir.getFileHandle(filename, { create: true });
+        const writable = await file.createWritable();
+        await writable.write(json);
+        await writable.close();
+        result.savedWithDirectoryPicker = true;
+        return result;
+      } catch (error) {
+        result.directoryPickerError = String(error?.message || error);
+        result.downloadFallbackReason = "directory picker was unavailable, canceled, or blocked";
+      }
+    } else {
+      result.downloadFallbackReason = "window.showDirectoryPicker is not available";
+    }
+
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    result.downloadedWithBlob = true;
+    return result;
+  };
   const visibleText = (el) => normalizeText(el?.innerText || el?.textContent);
   const cssPath = (el) => {
     if (!el) return null;
@@ -192,8 +264,15 @@
       return chain;
     });
 
+  const suggestedFileName = `${DIAGNOSTIC_NAME}_${sanitizeFilePart(
+    document.title
+  )}_${timestampForFile()}.json`;
+
   const output = {
+    diagnosticName: DIAGNOSTIC_NAME,
     diagnosticVersion: DIAGNOSTIC_VERSION,
+    createdAtLocal: new Date().toString(),
+    suggestedFileName,
     href: location.href,
     title: document.title,
     viewport: {
@@ -212,6 +291,8 @@
   };
 
   console.log("CHATGPT_DOM_DIAGNOSTIC", output);
-  copy(JSON.stringify(output, null, 2));
+  const saveResult = await saveDiagnosticJson(output, suggestedFileName);
+  output.saveResult = saveResult;
+  console.log("CHATGPT_DOM_DIAGNOSTIC_SAVE_RESULT", saveResult);
   return output;
 })();
