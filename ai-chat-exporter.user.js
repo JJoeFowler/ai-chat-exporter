@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT / Claude / Copilot / Gemini / Grok AI Chat Exporter by RevivalStack
 // @namespace    https://github.com/revivalstack/chatgpt-exporter
-// @version      3.1.2
+// @version      3.1.3
 // @description  Export your ChatGPT, Claude, Copilot, Gemini or Grok chat into a properly and elegantly formatted Markdown or JSON.
 // @author       Mic Mejia (Refactored by Google Gemini)
 // @homepage     https://github.com/micmejia
@@ -22,7 +22,7 @@
   "use strict";
 
   // --- Global Constants ---
-  const EXPORTER_VERSION = "3.1.2";
+  const EXPORTER_VERSION = "3.1.3";
   const EXPORT_CONTAINER_ID = "export-controls-container";
   const OUTLINE_CONTAINER_ID = "export-outline-container"; // ID for the outline div
   const DOM_READY_TIMEOUT = 1000;
@@ -705,9 +705,18 @@
 
       if (articles.length > 0) {
         for (const article of articles) {
-          const roleNode = article.querySelector("[data-message-author-role]");
-          const role = roleNode?.getAttribute("data-message-author-role");
-          const turnType = article.getAttribute("data-turn") || role;
+          const roleNodes = [
+            ...article.querySelectorAll("[data-message-author-role]"),
+          ];
+          if (roleNodes.length > 0) {
+            roleNodes.forEach((node) => {
+              const role = node.getAttribute("data-message-author-role");
+              addMessage(node, role === "user" ? "user" : "ai");
+            });
+            continue;
+          }
+
+          const turnType = article.getAttribute("data-turn");
           const header =
             article
               .querySelector(CHATGPT_HEADER_SELECTOR)
