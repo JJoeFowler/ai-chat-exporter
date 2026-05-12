@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT / Claude / Copilot / Gemini / Grok AI Chat Exporter by RevivalStack
 // @namespace    https://github.com/revivalstack/chatgpt-exporter
-// @version      3.1.3
+// @version      3.1.4
 // @description  Export your ChatGPT, Claude, Copilot, Gemini or Grok chat into a properly and elegantly formatted Markdown or JSON.
 // @author       Mic Mejia (Refactored by Google Gemini)
 // @homepage     https://github.com/micmejia
@@ -22,7 +22,7 @@
   "use strict";
 
   // --- Global Constants ---
-  const EXPORTER_VERSION = "3.1.3";
+  const EXPORTER_VERSION = "3.1.4";
   const EXPORT_CONTAINER_ID = "export-controls-container";
   const OUTLINE_CONTAINER_ID = "export-outline-container"; // ID for the outline div
   const DOM_READY_TIMEOUT = 1000;
@@ -659,14 +659,11 @@
      */
     extractChatGPTChatData(doc) {
       const articles = [...doc.querySelectorAll(CHATGPT_ARTICLE_SELECTOR)];
-      const directMessageNodes =
-        articles.length === 0
-          ? [
-              ...doc.querySelectorAll(
-                "[data-message-author-role='user'], [data-message-author-role='assistant']"
-              ),
-            ]
-          : [];
+      const directMessageNodes = [
+        ...doc.querySelectorAll(
+          "[data-message-author-role='user'], [data-message-author-role='assistant']"
+        ),
+      ];
       if (articles.length === 0 && directMessageNodes.length === 0)
         return null;
 
@@ -703,7 +700,12 @@
         if (author === "ai") chatIndex++;
       };
 
-      if (articles.length > 0) {
+      if (directMessageNodes.length > 0) {
+        for (const node of directMessageNodes) {
+          const role = node.getAttribute("data-message-author-role");
+          addMessage(node, role === "user" ? "user" : "ai");
+        }
+      } else if (articles.length > 0) {
         for (const article of articles) {
           const roleNodes = [
             ...article.querySelectorAll("[data-message-author-role]"),
@@ -728,11 +730,6 @@
           const author = isUser ? "user" : "ai";
 
           addMessage(article, author);
-        }
-      } else {
-        for (const node of directMessageNodes) {
-          const role = node.getAttribute("data-message-author-role");
-          addMessage(node, role === "user" ? "user" : "ai");
         }
       }
 
