@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT / Claude / Copilot / Gemini / Grok AI Chat Exporter by RevivalStack
 // @namespace    https://github.com/revivalstack/chatgpt-exporter
-// @version      3.1.4
+// @version      3.1.5
 // @description  Export your ChatGPT, Claude, Copilot, Gemini or Grok chat into a properly and elegantly formatted Markdown or JSON.
 // @author       Mic Mejia (Refactored by Google Gemini)
 // @homepage     https://github.com/micmejia
@@ -22,7 +22,7 @@
   "use strict";
 
   // --- Global Constants ---
-  const EXPORTER_VERSION = "3.1.4";
+  const EXPORTER_VERSION = "3.1.5";
   const EXPORT_CONTAINER_ID = "export-controls-container";
   const OUTLINE_CONTAINER_ID = "export-outline-container"; // ID for the outline div
   const DOM_READY_TIMEOUT = 1000;
@@ -58,35 +58,36 @@
     }
   });
 
-  // --- 1. Horizontal Position Command ---
-  GM_registerMenuCommand("Set Horizontal Position", () => {
+  // --- 1. Chat Center Offset Command ---
+  GM_registerMenuCommand("Set Chat Center Offset", () => {
     const screenWidth =
       document.documentElement.clientWidth || window.innerWidth || 0;
-    const currentPos = GM_getValue(GM_CONTROLS_HORIZONTAL_POSITION, 20);
+    const currentPos = GM_getValue(GM_CONTROLS_HORIZONTAL_POSITION, 140);
 
     const promptMsg =
-      `Set horizontal position (right) in px.\n\n` +
+      `Set chat center offset in px.\n\n` +
       `Current: ${currentPos}px\n` +
       `Screen Width: ${screenWidth}px\n\n` +
-      `Note: Invalid input will reset position to 20px. \n` +
+      `Positive values move the controls right to compensate for the left sidebar.\n` +
+      `Note: Invalid input will reset position to 140px. \n` +
       `You must refresh the page after for changes to take effect.`;
 
     const input = prompt(promptMsg, currentPos);
     if (input !== null) {
       const parsed = parseInt(input, 10);
-      const isValid = !isNaN(parsed) && parsed >= 0;
-      const finalVal = isValid ? parsed : 20;
+      const isValid = !isNaN(parsed);
+      const finalVal = isValid ? parsed : 140;
 
-      if (isValid && screenWidth > 0 && parsed > screenWidth - 60) {
+      if (isValid && screenWidth > 0 && Math.abs(parsed) > screenWidth / 2) {
         alert(
-          `Warning: ${parsed}px is very large for your current screen width (${screenWidth}px). The controls will likely be hidden off-screen.`
+          `Warning: ${parsed}px is very large for your current screen width (${screenWidth}px). The controls may be pushed off-screen.`
         );
       }
 
       GM_setValue(GM_CONTROLS_HORIZONTAL_POSITION, finalVal);
       if (isValid)
         alert(
-          `Horizontal position set to ${finalVal}px. Please refresh to apply.`
+          `Chat center offset set to ${finalVal}px. Please refresh to apply.`
         );
     }
   });
@@ -98,7 +99,7 @@
     const currentPos = GM_getValue(GM_CONTROLS_VERTICAL_POSITION, 20);
 
     const promptMsg =
-      `Set vertical position (bottom) in px.\n\n` +
+      `Set vertical position (top) in px.\n\n` +
       `Current: ${currentPos}px\n` +
       `Screen Height: ${screenHeight}px\n\n` +
       `Note: Invalid input will reset position to 20px. \n` +
@@ -125,19 +126,19 @@
   });
 
   // --- 3. Dynamic Style Calculation ---
-  const hPos = GM_getValue(GM_CONTROLS_HORIZONTAL_POSITION, 20);
+  const hPos = GM_getValue(GM_CONTROLS_HORIZONTAL_POSITION, 140);
   const vPos = GM_getValue(GM_CONTROLS_VERTICAL_POSITION, 20);
 
-  const savedHorizontalPos = `${hPos}px`;
   const savedVerticalPos = `${vPos}px`;
-  const outlineVerticalPos = `${vPos + 50}px`; // Always +50px above main buttons
+  const topCenterChatTransform = `translateX(calc(-50% + ${hPos}px))`;
 
   const FONT_STACK = `system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"`;
 
   const COMMON_CONTROL_PROPS = {
     position: "fixed",
-    bottom: savedVerticalPos,
-    right: savedHorizontalPos,
+    top: savedVerticalPos,
+    left: "50%",
+    transform: topCenterChatTransform,
     zIndex: "9999",
     boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
     fontSize: "14px",
@@ -150,8 +151,9 @@
 
   const OUTLINE_CONTAINER_PROPS = {
     position: "fixed",
-    bottom: outlineVerticalPos,
-    right: savedHorizontalPos,
+    top: `${vPos + 50}px`,
+    left: "50%",
+    transform: topCenterChatTransform,
     zIndex: "9998",
     boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
     fontSize: "12px",
