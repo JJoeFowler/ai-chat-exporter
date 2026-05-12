@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT / Claude / Copilot / Gemini / Grok AI Chat Exporter by RevivalStack
 // @namespace    https://github.com/revivalstack/chatgpt-exporter
-// @version      3.1.7
+// @version      3.1.8
 // @description  Export your ChatGPT, Claude, Copilot, Gemini or Grok chat into a properly and elegantly formatted Markdown or JSON.
 // @author       Mic Mejia (Refactored by Google Gemini)
 // @homepage     https://github.com/micmejia
@@ -22,7 +22,7 @@
   "use strict";
 
   // --- Global Constants ---
-  const EXPORTER_VERSION = "3.1.7";
+  const EXPORTER_VERSION = "3.1.8";
   const EXPORT_CONTAINER_ID = "export-controls-container";
   const OUTLINE_CONTAINER_ID = "export-outline-container"; // ID for the outline div
   const DOM_READY_TIMEOUT = 1000;
@@ -674,6 +674,7 @@
         DEFAULT_CHAT_TITLE;
       const messages = [];
       let chatIndex = 1;
+      let messageIndex = 1;
 
       const addMessage = (container, author) => {
         const contentTarget =
@@ -682,13 +683,20 @@
             ? container
             : container.querySelector(CHATGPT_TEXT_DIV_SELECTOR);
         const contentHtml = contentTarget || container;
-        const contentText = contentHtml.innerText.trim();
+        const contentText = (
+          contentHtml.innerText ||
+          contentHtml.textContent ||
+          ""
+        ).trim();
 
         if (!contentText) return;
 
-        const messageId = `${author}-${chatIndex}-${Date.now()}-${Math.random()
+        const messageId = `${author}-${messageIndex++}-${Date.now()}-${Math.random()
           .toString(36)
           .substring(2, 9)}`;
+
+        const originalIndex =
+          author === "user" ? chatIndex : Math.max(chatIndex - 1, 1);
 
         messages.push({
           id: messageId,
@@ -696,10 +704,10 @@
           contentHtml: contentHtml, // Pass the clean container to Turndown
           contentText: contentText,
           timestamp: new Date(),
-          originalIndex: chatIndex,
+          originalIndex: originalIndex,
         });
 
-        if (author === "ai") chatIndex++;
+        if (author === "user") chatIndex++;
       };
 
       if (directMessageNodes.length > 0) {
