@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT / Claude / Copilot / Gemini / Grok AI Chat Exporter by RevivalStack
 // @namespace    https://github.com/revivalstack/chatgpt-exporter
-// @version      3.1.0
+// @version      3.1.1
 // @description  Export your ChatGPT, Claude, Copilot, Gemini or Grok chat into a properly and elegantly formatted Markdown or JSON.
 // @author       Mic Mejia (Refactored by Google Gemini)
 // @homepage     https://github.com/micmejia
@@ -16,15 +16,13 @@
 // @grant        GM_setValue
 // @grant        GM_registerMenuCommand
 // @noframes
-// @downloadURL https://update.greasyfork.org/scripts/541051/ChatGPT%20%20Claude%20%20Copilot%20%20Gemini%20AI%20Chat%20Exporter%20by%20RevivalStack.user.js
-// @updateURL https://update.greasyfork.org/scripts/541051/ChatGPT%20%20Claude%20%20Copilot%20%20Gemini%20AI%20Chat%20Exporter%20by%20RevivalStack.meta.js
 // ==/UserScript==
 
 (function () {
   "use strict";
 
   // --- Global Constants ---
-  const EXPORTER_VERSION = "3.1.0";
+  const EXPORTER_VERSION = "3.1.1";
   const EXPORT_CONTAINER_ID = "export-controls-container";
   const OUTLINE_CONTAINER_ID = "export-outline-container"; // ID for the outline div
   const DOM_READY_TIMEOUT = 1000;
@@ -327,7 +325,8 @@
   const CHATGPT = "chatgpt";
   const CHATGPT_HOSTNAMES = ["chat.openai.com", "chatgpt.com"];
   const CHATGPT_TITLE_REPLACE_TEXT = " - ChatGPT";
-  const CHATGPT_ARTICLE_SELECTOR = "section[data-testid^='conversation-turn-']";
+  const CHATGPT_ARTICLE_SELECTOR =
+    "section[data-testid^='conversation-turn-'], article[data-testid^='conversation-turn-'], div[data-testid^='conversation-turn-']";
   const CHATGPT_HEADER_SELECTOR = "h4"; // Targets the hidden "You said:" / "ChatGPT said:"
   const CHATGPT_TEXT_DIV_SELECTOR = ".markdown, .whitespace-pre-wrap";
   const CHATGPT_USER_MESSAGE_INDICATOR = "you said";
@@ -660,7 +659,16 @@
      */
     extractChatGPTChatData(doc) {
       const articles = [...doc.querySelectorAll(CHATGPT_ARTICLE_SELECTOR)];
-      if (articles.length === 0) return null;
+      const directMessageNodes =
+        articles.length === 0
+          ? [
+              ...doc.querySelectorAll(
+                "[data-message-author-role='user'], [data-message-author-role='assistant']"
+              ),
+            ]
+          : [];
+      if (articles.length === 0 && directMessageNodes.length === 0)
+        return null;
 
       let title =
         doc.title.replace(CHATGPT_TITLE_REPLACE_TEXT, "").trim() ||
@@ -668,26 +676,16 @@
       const messages = [];
       let chatIndex = 1;
 
-      for (const article of articles) {
-        const turnType = article.getAttribute("data-turn");
-        const header =
-          article.querySelector(CHATGPT_HEADER_SELECTOR)?.textContent?.trim() ||
-          "";
-
-        const isUser =
-          turnType === "user" ||
-          header.toLowerCase().includes(CHATGPT_USER_MESSAGE_INDICATOR);
-        const author = isUser ? "user" : "ai";
-
-        // CRITICAL FIX: Target exactly the content container to ignore action buttons
-        const contentTarget = article.querySelector(
-          ".markdown, .whitespace-pre-wrap"
-        );
-        const contentHtml = contentTarget || article;
-
+      const addMessage = (container, author) => {
+        const contentTarget =
+          container.matches(CHATGPT_TEXT_DIV_SELECTOR) ||
+          container.hasAttribute("data-message-author-role")
+            ? container
+            : container.querySelector(CHATGPT_TEXT_DIV_SELECTOR);
+        const contentHtml = contentTarget || container;
         const contentText = contentHtml.innerText.trim();
 
-        if (!contentText) continue;
+        if (!contentText) return;
 
         const messageId = `${author}-${chatIndex}-${Date.now()}-${Math.random()
           .toString(36)
@@ -702,7 +700,31 @@
           originalIndex: chatIndex,
         });
 
-        if (!isUser) chatIndex++;
+        if (author === "ai") chatIndex++;
+      };
+
+      if (articles.length > 0) {
+        for (const article of articles) {
+          const roleNode = article.querySelector("[data-message-author-role]");
+          const role = roleNode?.getAttribute("data-message-author-role");
+          const turnType = article.getAttribute("data-turn") || role;
+          const header =
+            article
+              .querySelector(CHATGPT_HEADER_SELECTOR)
+              ?.textContent?.trim() || "";
+
+          const isUser =
+            turnType === "user" ||
+            header.toLowerCase().includes(CHATGPT_USER_MESSAGE_INDICATOR);
+          const author = isUser ? "user" : "ai";
+
+          addMessage(article, author);
+        }
+      } else {
+        for (const node of directMessageNodes) {
+          const role = node.getAttribute("data-message-author-role");
+          addMessage(node, role === "user" ? "user" : "ai");
+        }
       }
 
       const _parsedTitle = Utils.parseChatTitleAndTags(title);
