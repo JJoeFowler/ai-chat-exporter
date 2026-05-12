@@ -1,4 +1,5 @@
 (() => {
+  const DIAGNOSTIC_VERSION = "2026-05-11.2";
   const selectors = [
     "main",
     "article",
@@ -17,6 +18,8 @@
     "div[class*='markdown']",
     "div[class*='prose']",
     "div[class*='whitespace']",
+    "button",
+    "[aria-expanded]",
   ];
 
   const countReport = selectors.map((selector) => ({
@@ -24,8 +27,56 @@
     count: document.querySelectorAll(selector).length,
   }));
 
-  const visibleText = (el) =>
-    (el?.innerText || el?.textContent || "").replace(/\s+/g, " ").trim();
+  const normalizeText = (text) => String(text || "").replace(/\s+/g, " ").trim();
+  const visibleText = (el) => normalizeText(el?.innerText || el?.textContent);
+  const cssPath = (el) => {
+    if (!el) return null;
+    const parts = [];
+    let cur = el;
+    for (let i = 0; cur && i < 5; i++, cur = cur.parentElement) {
+      let part = cur.tagName?.toLowerCase() || "unknown";
+      const testId = cur.getAttribute?.("data-testid");
+      const role = cur.getAttribute?.("data-message-author-role");
+      const id = cur.id;
+      if (id) part += `#${id}`;
+      if (testId) part += `[data-testid="${testId}"]`;
+      if (role) part += `[data-message-author-role="${role}"]`;
+      parts.unshift(part);
+    }
+    return parts.join(" > ");
+  };
+  const isVisible = (el) => {
+    if (!el) return false;
+    const rect = el.getBoundingClientRect?.();
+    const style = window.getComputedStyle?.(el);
+    return Boolean(
+      rect &&
+        rect.width > 0 &&
+        rect.height > 0 &&
+        style &&
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        style.opacity !== "0"
+    );
+  };
+  const isInViewport = (el) => {
+    const rect = el?.getBoundingClientRect?.();
+    if (!rect) return false;
+    return (
+      rect.bottom >= 0 &&
+      rect.right >= 0 &&
+      rect.top <= (window.innerHeight || document.documentElement.clientHeight) &&
+      rect.left <= (window.innerWidth || document.documentElement.clientWidth)
+    );
+  };
+  const getButtons = (el) =>
+    [...(el?.querySelectorAll?.("button") || [])].slice(0, 12).map((button) => ({
+      text: visibleText(button).slice(0, 120),
+      ariaLabel: button.getAttribute("aria-label"),
+      ariaExpanded: button.getAttribute("aria-expanded"),
+      dataTestId: button.getAttribute("data-testid"),
+      visible: isVisible(button),
+    }));
 
   const describe = (el) => {
     if (!el) return null;
@@ -38,7 +89,12 @@
       dataMessageAuthorRole: el.getAttribute?.("data-message-author-role"),
       ariaLabel: el.getAttribute?.("aria-label"),
       role: el.getAttribute?.("role"),
+      ariaExpanded: el.getAttribute?.("aria-expanded"),
+      visible: isVisible(el),
+      inViewport: isInViewport(el),
+      textLength: visibleText(el).length,
       textPreview: visibleText(el).slice(0, 180),
+      cssPath: cssPath(el),
       rect: rect
         ? {
             x: Math.round(rect.x),
@@ -49,6 +105,76 @@
         : null,
     };
   };
+
+  const turnSelector =
+    "section[data-testid^='conversation-turn-'], article[data-testid^='conversation-turn-'], div[data-testid^='conversation-turn-']";
+  const roleSelector =
+    "[data-message-author-role='user'], [data-message-author-role='assistant']";
+
+  const roleNodeReport = [...document.querySelectorAll(roleSelector)].map(
+    (node, index) => {
+      const turn = node.closest(turnSelector);
+      const markdownNodes = [...node.querySelectorAll(".markdown")];
+      const whitespaceNodes = [...node.querySelectorAll(".whitespace-pre-wrap")];
+      return {
+        index,
+        role: node.getAttribute("data-message-author-role"),
+        visible: isVisible(node),
+        inViewport: isInViewport(node),
+        textLength: visibleText(node).length,
+        textPreview: visibleText(node).slice(0, 300),
+        nearestTurn: describe(turn),
+        own: describe(node),
+        markdownNodeCount: markdownNodes.length,
+        markdownPreviews: markdownNodes.slice(0, 4).map((el) => describe(el)),
+        whitespaceNodeCount: whitespaceNodes.length,
+        whitespacePreviews: whitespaceNodes.slice(0, 4).map((el) =>
+          describe(el)
+        ),
+        buttons: getButtons(node),
+      };
+    }
+  );
+
+  const turnReport = [...document.querySelectorAll(turnSelector)].map(
+    (turn, index) => {
+      const roleNodes = [...turn.querySelectorAll(roleSelector)];
+      return {
+        index,
+        turn: describe(turn),
+        roleNodeCount: roleNodes.length,
+        roles: roleNodes.map((node) => node.getAttribute("data-message-author-role")),
+        roleTextLengths: roleNodes.map((node) => visibleText(node).length),
+        rolePreviews: roleNodes.map((node) => visibleText(node).slice(0, 180)),
+        markdownCount: turn.querySelectorAll(".markdown").length,
+        whitespacePreWrapCount: turn.querySelectorAll(".whitespace-pre-wrap")
+          .length,
+        buttons: getButtons(turn),
+      };
+    }
+  );
+
+  const showMoreCandidates = [...document.querySelectorAll("button, [role='button']")]
+    .map((el, index) => ({ index, el, text: visibleText(el) }))
+    .filter((item) => /show more|continue|expand|read more/i.test(item.text))
+    .slice(0, 80)
+    .map((item) => ({
+      index: item.index,
+      button: describe(item.el),
+      nearestRoleNode: describe(item.el.closest(roleSelector)),
+      nearestTurn: describe(item.el.closest(turnSelector)),
+    }));
+
+  const roleSummary = roleNodeReport.reduce(
+    (acc, item) => {
+      acc[item.role] = (acc[item.role] || 0) + 1;
+      if (item.visible) acc.visible[item.role] = (acc.visible[item.role] || 0) + 1;
+      if (item.inViewport)
+        acc.inViewport[item.role] = (acc.inViewport[item.role] || 0) + 1;
+      return acc;
+    },
+    { visible: {}, inViewport: {} }
+  );
 
   const likelyTextNodeAncestorChains = [...document.querySelectorAll("main *")]
     .filter((el) => {
@@ -67,9 +193,21 @@
     });
 
   const output = {
+    diagnosticVersion: DIAGNOSTIC_VERSION,
     href: location.href,
     title: document.title,
+    viewport: {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      scrollX: window.scrollX,
+      scrollY: window.scrollY,
+      documentHeight: document.documentElement.scrollHeight,
+    },
     counts: countReport,
+    roleSummary,
+    roleNodeReport,
+    turnReport,
+    showMoreCandidates,
     likelyTextNodeAncestorChains,
   };
 
